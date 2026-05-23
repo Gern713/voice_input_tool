@@ -14,7 +14,29 @@ from recorder import AudioRecorder
 from asr_client import ASRClient
 from text_processor import TextProcessor
 
+# Win32 constants
 WM_HOTKEY = 0x0312
+VK_F8 = 0x77
+VK_CTRL = 0x11
+VK_V = 0x56
+KEY_DOWN = 0
+KEY_UP = 2
+
+# Widget layout
+BTN_WIDTH = 64
+BTN_HEIGHT = 84
+BTN_CIRCLE_R = 30
+DRAG_THRESHOLD = 4
+
+# Timing (ms)
+PULSE_INTERVAL = 60
+TICKS_PER_SEC = 17
+PROCESSING_TIMEOUT = 30000
+
+# Paste timing (s)
+FOCUS_WAIT = 0.1
+CLIPBOARD_WAIT = 0.05
+PASTE_WAIT = 0.3
 
 
 class FloatingMic(QWidget):
@@ -40,7 +62,7 @@ class FloatingMic(QWidget):
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFixedSize(64, 84)
+        self.setFixedSize(BTN_WIDTH, BTN_HEIGHT)
         self.setToolTip("点击录音 | 拖拽移动 | F8 快捷键")
 
         self._timer = QTimer(self)
@@ -53,7 +75,7 @@ class FloatingMic(QWidget):
         self.reset_requested.connect(self._do_reset)
         self.paste_and_notify.connect(self._do_paste_and_notify)
 
-        ctypes.windll.user32.RegisterHotKey(int(self.winId()), 1, 0, 0x77)
+        ctypes.windll.user32.RegisterHotKey(int(self.winId()), 1, 0, VK_F8)
 
         screen = QApplication.primaryScreen().geometry()
         self.move(screen.right() - 100, screen.center().y() - 32)
@@ -78,10 +100,10 @@ class FloatingMic(QWidget):
         if state == self.RECORDING:
             self._pulse = 0
             self._tick_count = 0
-            self._timer.start(60)
+            self._timer.start(PULSE_INTERVAL)
         elif state == self.PROCESSING:
             self._timer.stop()
-            self._timeout_timer.start(30000)
+            self._timeout_timer.start(PROCESSING_TIMEOUT)
         else:
             self._timer.stop()
             self._timeout_timer.stop()
@@ -101,17 +123,17 @@ class FloatingMic(QWidget):
 
         if target:
             ctypes.windll.user32.SetForegroundWindow(target)
-            time.sleep(0.1)
+            time.sleep(FOCUS_WAIT)
 
         pyperclip.copy(text)
-        time.sleep(0.05)
+        time.sleep(CLIPBOARD_WAIT)
 
         user32 = ctypes.windll.user32
-        user32.keybd_event(0x11, 0, 0, 0)
-        user32.keybd_event(0x56, 0, 0, 0)
-        user32.keybd_event(0x56, 0, 2, 0)
-        user32.keybd_event(0x11, 0, 2, 0)
-        time.sleep(0.3)
+        user32.keybd_event(VK_CTRL, 0, KEY_DOWN, 0)
+        user32.keybd_event(VK_V, 0, KEY_DOWN, 0)
+        user32.keybd_event(VK_V, 0, KEY_UP, 0)
+        user32.keybd_event(VK_CTRL, 0, KEY_UP, 0)
+        time.sleep(PASTE_WAIT)
 
         if old_clip is not None:
             try:
@@ -146,7 +168,7 @@ class FloatingMic(QWidget):
             return
         new_pos = e.globalPosition().toPoint() - self._drag_start
         if not self._dragging:
-            if (new_pos - self.pos()).manhattanLength() > 4:
+            if (new_pos - self.pos()).manhattanLength() > DRAG_THRESHOLD:
                 self._dragging = True
         if self._dragging:
             self.move(new_pos)
@@ -161,10 +183,10 @@ class FloatingMic(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
 
-        cx, cy, r = 32, 32, 30
+        cx, cy, r = 32, 32, BTN_CIRCLE_R
 
         if self.state == self.RECORDING:
-            secs = self._tick_count // 17
+            secs = self._tick_count // TICKS_PER_SEC
             p.setFont(QFont("Microsoft YaHei", 9))
             p.setPen(QColor(255, 255, 255))
             p.drawText(0, 68, 64, 16, Qt.AlignCenter, f"{secs}s")
