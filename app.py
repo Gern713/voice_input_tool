@@ -1,6 +1,7 @@
 import sys
 import threading
 import logging
+import winsound
 
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PySide6.QtGui import QColor, QPixmap, QIcon
@@ -51,9 +52,11 @@ class VoiceInputApp:
             try:
                 self.recorder.start()
                 self.btn.set_state(FloatingMic.RECORDING)
+                winsound.Beep(800, 150)
             except Exception as e:
                 logging.error("录音启动失败: %s", e)
         elif self.btn.state == FloatingMic.RECORDING:
+            winsound.Beep(400, 200)
             audio_data = self.recorder.stop()
             self.btn.set_state(FloatingMic.PROCESSING)
             if audio_data is not None:
