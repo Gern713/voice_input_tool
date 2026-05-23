@@ -1,4 +1,5 @@
 import sys
+import logging
 import threading
 import time
 import ctypes
@@ -149,7 +150,7 @@ class FloatingMic(QWidget):
             )
 
     def _on_timeout(self):
-        print("处理超时，自动重置")
+        logging.warning("处理超时，自动重置")
         self.set_state(self.IDLE)
 
     def _tick(self):
@@ -274,7 +275,7 @@ class VoiceInputApp:
                 self.recorder.start()
                 self.btn.set_state(FloatingMic.RECORDING)
             except Exception as e:
-                print(f"录音启动失败: {e}")
+                logging.error("录音启动失败: %s", e)
         elif self.btn.state == FloatingMic.RECORDING:
             audio_data = self.recorder.stop()
             self.btn.set_state(FloatingMic.PROCESSING)
@@ -289,17 +290,17 @@ class VoiceInputApp:
         try:
             raw_text = self.asr.transcribe(audio_data)
             if not raw_text:
-                print("未识别到语音内容")
+                logging.info("未识别到语音内容")
                 return
 
-            print(f"ASR: {raw_text}")
+            logging.info("ASR: %s", raw_text)
 
             text = self.processor.improve(raw_text)
-            print(f"GLM: {text}")
+            logging.info("GLM: %s", text)
 
             self.btn.paste_and_notify.emit(text)
         except Exception as e:
-            print(f"处理失败: {e}")
+            logging.error("处理失败: %s", e)
         finally:
             self.btn.reset_requested.emit()
 
@@ -308,13 +309,19 @@ class VoiceInputApp:
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
     if not ZHIPU_API_KEY:
-        print("请先设置 ZHIPU_API_KEY（config.py 或环境变量）")
-        print("获取: https://open.bigmodel.cn")
+        logging.error("请先设置 ZHIPU_API_KEY（config.py 或环境变量）")
+        logging.error("获取: https://open.bigmodel.cn")
         sys.exit(1)
 
-    print("语音输入助手启动中...")
-    print("首次运行会加载 ASR 模型，请稍候")
+    logging.info("语音输入助手启动中...")
+    logging.info("首次运行会加载 ASR 模型，请稍候")
     app = VoiceInputApp()
     sys.exit(app.run())
 
