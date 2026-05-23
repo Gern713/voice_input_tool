@@ -1,21 +1,24 @@
 import sys
 import threading
+import time
+import ctypes
 
 from PySide6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QPainter, QColor, QPen, QPixmap, QIcon
 
+import pyperclip
+
 from config import ZHIPU_API_KEY
 from recorder import AudioRecorder
 from asr_client import ASRClient
 from text_processor import TextProcessor
-from paster import paste_text
 
 
 class FloatingMic(QWidget):
     clicked = Signal()
     reset_requested = Signal()
-    show_message = Signal(str)
+    paste_and_notify = Signal(str)
 
     IDLE = "idle"
     RECORDING = "recording"
@@ -27,6 +30,7 @@ class FloatingMic(QWidget):
         self._drag_start = None
         self._dragging = False
         self._pulse = 0
+        self._target_hwnd = None
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
@@ -43,10 +47,16 @@ class FloatingMic(QWidget):
         self._timeout_timer.timeout.connect(self._on_timeout)
 
         self.reset_requested.connect(self._do_reset)
-        self.show_message.connect(self._do_show_message)
+        self.paste_and_notify.connect(self._do_paste_and_notify)
 
         screen = QApplication.primaryScreen().geometry()
         self.move(screen.right() - 100, screen.center().y() - 32)
+
+    def enterEvent(self, event):
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        my_hwnd = int(self.winId())
+        if hwnd != my_hwnd and hwnd != 0:
+            self._target_hwnd = hwnd
 
     def set_state(self, state):
         self.state = state
@@ -64,7 +74,26 @@ class FloatingMic(QWidget):
     def _do_reset(self):
         self.set_state(self.IDLE)
 
-    def _do_show_message(self, text):
+    def _do_paste_and_notify(self, text):
+        target = self._target_hwnd
+        self.hide()
+
+        if target:
+            ctypes.windll.user32.SetForegroundWindow(target)
+            time.sleep(0.1)
+
+        pyperclip.copy(text)
+        time.sleep(0.05)
+
+        user32 = ctypes.windll.user32
+        user32.keybd_event(0x11, 0, 0, 0)
+        user32.keybd_event(0x56, 0, 0, 0)
+        user32.keybd_event(0x56, 0, 2, 0)
+        user32.keybd_event(0x11, 0, 2, 0)
+        time.sleep(0.3)
+
+        self.show()
+
         if hasattr(self, "_tray_ref") and self._tray_ref:
             self._tray_ref.showMessage(
                 "语音输入", text, QSystemTrayIcon.MessageIcon.Information, 2000
@@ -185,8 +214,6 @@ class VoiceInputApp:
     def toggle(self):
         if self.btn.state == FloatingMic.IDLE:
             try:
-                import ctypes
-                self._target_hwnd = ctypes.windll.user32.GetForegroundWindow()
                 self.recorder.start()
                 self.btn.set_state(FloatingMic.RECORDING)
             except Exception as e:
@@ -213,8 +240,7 @@ class VoiceInputApp:
             text = self.processor.improve(raw_text)
             print(f"GLM: {text}")
 
-            paste_text(text, getattr(self, "_target_hwnd", None))
-            self.btn.show_message.emit(text)
+            self.btn.paste_and_notify.emit(text)
         except Exception as e:
             print(f"处理失败: {e}")
         finally:
