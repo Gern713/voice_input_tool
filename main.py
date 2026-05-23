@@ -14,6 +14,8 @@ from recorder import AudioRecorder
 from asr_client import ASRClient
 from text_processor import TextProcessor
 
+WM_HOTKEY = 0x0312
+
 
 class FloatingMic(QWidget):
     clicked = Signal()
@@ -31,13 +33,14 @@ class FloatingMic(QWidget):
         self._dragging = False
         self._pulse = 0
         self._target_hwnd = None
+        self._hotkey_cb = None
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(64, 64)
-        self.setToolTip("点击录音 | 拖拽移动")
+        self.setToolTip("点击录音 | 拖拽移动 | F8 快捷键")
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -49,8 +52,19 @@ class FloatingMic(QWidget):
         self.reset_requested.connect(self._do_reset)
         self.paste_and_notify.connect(self._do_paste_and_notify)
 
+        ctypes.windll.user32.RegisterHotKey(int(self.winId()), 1, 0, 0x77)
+
         screen = QApplication.primaryScreen().geometry()
         self.move(screen.right() - 100, screen.center().y() - 32)
+
+    def nativeEvent(self, eventType, message):
+        if eventType == b"windows_generic_MSG":
+            msg = ctypes.wintypes.MSG.from_address(int(message))
+            if msg.message == WM_HOTKEY and msg.wParam == 1:
+                if self._hotkey_cb:
+                    self._hotkey_cb()
+                return True, 0
+        return False, 0
 
     def enterEvent(self, event):
         hwnd = ctypes.windll.user32.GetForegroundWindow()
@@ -188,6 +202,7 @@ class VoiceInputApp:
 
         self.btn = FloatingMic()
         self.btn.clicked.connect(self.toggle)
+        self.btn._hotkey_cb = self.toggle
         self.btn.show()
 
         self._init_tray()
