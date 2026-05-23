@@ -94,6 +94,11 @@ class FloatingMic(QWidget):
         target = self._target_hwnd
         self.hide()
 
+        try:
+            old_clip = pyperclip.paste()
+        except Exception:
+            old_clip = None
+
         if target:
             ctypes.windll.user32.SetForegroundWindow(target)
             time.sleep(0.1)
@@ -107,6 +112,12 @@ class FloatingMic(QWidget):
         user32.keybd_event(0x56, 0, 2, 0)
         user32.keybd_event(0x11, 0, 2, 0)
         time.sleep(0.3)
+
+        if old_clip is not None:
+            try:
+                pyperclip.copy(old_clip)
+            except Exception:
+                pass
 
         self.show()
 
