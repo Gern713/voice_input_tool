@@ -109,7 +109,9 @@ python main.py
 
 ```
 voice_input_tool/
-├── main.py            # 主程序入口，PySide6 UI + 流程控制
+├── main.py            # 程序入口
+├── ui.py              # FloatingMic 浮动按钮 UI
+├── app.py             # VoiceInputApp 流程编排
 ├── recorder.py        # 音频录制模块
 ├── asr_client.py      # ASR 语音识别客户端
 ├── text_processor.py  # GLM 文本后处理
@@ -119,7 +121,6 @@ voice_input_tool/
 │   ├── test_recorder.py
 │   ├── test_asr_client.py
 │   ├── test_text_processor.py
-│   ├── test_paster.py
 │   └── test_config.py
 └── README.md
 ```
