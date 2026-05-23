@@ -5,7 +5,7 @@ import ctypes
 
 from PySide6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QPainter, QColor, QPen, QPixmap, QIcon
+from PySide6.QtGui import QPainter, QColor, QPen, QFont, QPixmap, QIcon
 
 import pyperclip
 
@@ -34,12 +34,13 @@ class FloatingMic(QWidget):
         self._pulse = 0
         self._target_hwnd = None
         self._hotkey_cb = None
+        self._tick_count = 0
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFixedSize(64, 64)
+        self.setFixedSize(64, 84)
         self.setToolTip("点击录音 | 拖拽移动 | F8 快捷键")
 
         self._timer = QTimer(self)
@@ -76,6 +77,7 @@ class FloatingMic(QWidget):
         self.state = state
         if state == self.RECORDING:
             self._pulse = 0
+            self._tick_count = 0
             self._timer.start(60)
         elif state == self.PROCESSING:
             self._timer.stop()
@@ -119,6 +121,7 @@ class FloatingMic(QWidget):
 
     def _tick(self):
         self._pulse = (self._pulse + 1) % 20
+        self._tick_count += 1
         self.update()
 
     # --- Drag & Click ---
@@ -148,6 +151,12 @@ class FloatingMic(QWidget):
         p.setRenderHint(QPainter.Antialiasing)
 
         cx, cy, r = 32, 32, 30
+
+        if self.state == self.RECORDING:
+            secs = self._tick_count // 17
+            p.setFont(QFont("Microsoft YaHei", 9))
+            p.setPen(QColor(255, 255, 255))
+            p.drawText(0, 68, 64, 16, Qt.AlignCenter, f"{secs}s")
 
         if self.state == self.IDLE:
             bg = QColor(74, 144, 217)
