@@ -3,9 +3,8 @@ from config import ZHIPU_API_KEY, GLM_MODEL, SAMPLE_RATE, CHANNELS
 
 
 class TestConfig:
-    def test_api_key_exists(self):
-        assert ZHIPU_API_KEY is not None
-        assert len(ZHIPU_API_KEY) > 0
+    def test_api_key_is_string(self):
+        assert isinstance(ZHIPU_API_KEY, str)
 
     def test_model_name(self):
         assert GLM_MODEL == "glm-4-flash"

@@ -185,6 +185,8 @@ class VoiceInputApp:
     def toggle(self):
         if self.btn.state == FloatingMic.IDLE:
             try:
+                import ctypes
+                self._target_hwnd = ctypes.windll.user32.GetForegroundWindow()
                 self.recorder.start()
                 self.btn.set_state(FloatingMic.RECORDING)
             except Exception as e:
@@ -211,7 +213,7 @@ class VoiceInputApp:
             text = self.processor.improve(raw_text)
             print(f"GLM: {text}")
 
-            paste_text(text)
+            paste_text(text, getattr(self, "_target_hwnd", None))
             self.btn.show_message.emit(text)
         except Exception as e:
             print(f"处理失败: {e}")
