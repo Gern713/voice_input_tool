@@ -106,6 +106,10 @@ class FloatingMic(QWidget):
     def _do_reset(self):
         self.set_state(self.IDLE)
 
+    def show_notification(self, title, message, icon=QSystemTrayIcon.MessageIcon.Information):
+        if hasattr(self, "_tray_ref") and self._tray_ref:
+            self._tray_ref.showMessage(title, message, icon, 2000)
+
     def _do_paste_and_notify(self, text):
         target = self._target_hwnd
         self.hide()
@@ -142,13 +146,26 @@ class FloatingMic(QWidget):
                 "语音输入", text, QSystemTrayIcon.MessageIcon.Information, 2000
             )
 
+    def _on_max_recording(self):
+        logging.info("录音达到最大时长，自动停止")
+        if self._hotkey_cb:
+            self._hotkey_cb()
+
     def _on_timeout(self):
         logging.warning("处理超时，自动重置")
         self.set_state(self.IDLE)
+        if hasattr(self, "_tray_ref") and self._tray_ref:
+            self._tray_ref.showMessage(
+                "语音输入", "处理超时，请重试",
+                QSystemTrayIcon.MessageIcon.Warning, 2000
+            )
 
     def _tick(self):
         self._pulse = (self._pulse + 1) % 20
         self._tick_count += 1
+        if self._tick_count >= 60 * TICKS_PER_SEC:
+            self._on_max_recording()
+            return
         self.update()
 
     # --- Drag & Click ---

@@ -65,22 +65,40 @@ class VoiceInputApp:
                 ).start()
             else:
                 self.btn.set_state(FloatingMic.IDLE)
+                self.btn.show_notification("语音输入", "录音时间太短")
+        elif self.btn.state == FloatingMic.PROCESSING:
+            self.btn.set_state(FloatingMic.IDLE)
+            self.btn.show_notification("语音输入", "已取消处理")
+            if audio_data is not None:
+                threading.Thread(
+                    target=self._process, args=(audio_data,), daemon=True
+                ).start()
+            else:
+                self.btn.set_state(FloatingMic.IDLE)
+                self.btn.show_notification("语音输入", "录音时间太短")
 
     def _process(self, audio_data):
         try:
             raw_text = self.asr.transcribe(audio_data)
             if not raw_text:
                 logging.info("未识别到语音内容")
+                self.btn.show_notification("语音输入", "未识别到语音内容")
                 return
 
             logging.info("ASR: %s", raw_text)
 
-            text = self.processor.improve(raw_text)
-            logging.info("GLM: %s", text)
+            try:
+                text = self.processor.improve(raw_text)
+                logging.info("GLM: %s", text)
+            except Exception as e:
+                text = raw_text
+                logging.warning("GLM 纠错失败，使用原始文本: %s", e)
+                self.btn.show_notification("语音输入", "文本已输入（纠错失败）")
 
             self.btn.paste_and_notify.emit(text)
         except Exception as e:
             logging.error("处理失败: %s", e)
+            self.btn.show_notification("语音输入", "处理失败，请重试")
         finally:
             self.btn.reset_requested.emit()
 
