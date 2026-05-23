@@ -1,0 +1,7 @@
+PySide6>=6.6
+sounddevice>=0.4
+numpy>=1.24
+funasr>=1.0
+modelscope>=1.9
+pyperclip>=1.8
+zhipuai>=2.0
