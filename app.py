@@ -4,7 +4,7 @@ import logging
 import winsound
 
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PySide6.QtGui import QColor, QPixmap, QIcon
+from PySide6.QtGui import QColor, QPixmap, QIcon, QAction
 
 from ui import FloatingMic
 from recorder import AudioRecorder
@@ -22,6 +22,8 @@ class VoiceInputApp:
         self.asr = ASRClient()
         self.processor = TextProcessor()
 
+        self._correction_enabled = True
+
         self.btn = FloatingMic()
         self.btn.clicked.connect(self.toggle)
         self.btn._hotkey_cb = self.toggle
@@ -33,6 +35,12 @@ class VoiceInputApp:
     def _build_menu(self):
         menu = QMenu()
 
+        correction_action = QAction("文本纠错", self.app)
+        correction_action.setCheckable(True)
+        correction_action.setChecked(self._correction_enabled)
+        correction_action.triggered.connect(self._toggle_correction)
+        menu.addAction(correction_action)
+
         hist = history.load()
         if hist:
             hist_menu = menu.addMenu("历史记录")
@@ -41,10 +49,14 @@ class VoiceInputApp:
                 action = hist_menu.addAction(text)
                 action.setData(item["text"])
             hist_menu.triggered.connect(self._on_history_click)
-            menu.addSeparator()
 
+        menu.addSeparator()
         menu.addAction("退出").triggered.connect(self.app.quit)
         return menu
+
+    def _toggle_correction(self, checked):
+        self._correction_enabled = checked
+        logging.info("文本纠错: %s", "开启" if checked else "关闭")
 
     def _on_history_click(self, action):
         text = action.data()
@@ -103,13 +115,16 @@ class VoiceInputApp:
 
             logging.info("ASR: %s", raw_text)
 
-            try:
-                text = self.processor.improve(raw_text)
-                logging.info("GLM: %s", text)
-            except Exception as e:
+            if self._correction_enabled:
+                try:
+                    text = self.processor.improve(raw_text)
+                    logging.info("GLM: %s", text)
+                except Exception as e:
+                    text = raw_text
+                    logging.warning("GLM 纠错失败，使用原始文本: %s", e)
+                    self.btn.show_notification("语音输入", "文本已输入（纠错失败）")
+            else:
                 text = raw_text
-                logging.warning("GLM 纠错失败，使用原始文本: %s", e)
-                self.btn.show_notification("语音输入", "文本已输入（纠错失败）")
 
             history.add(text)
             self.btn.paste_and_notify.emit(text)
