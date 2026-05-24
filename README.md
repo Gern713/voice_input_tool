@@ -12,6 +12,9 @@
 - **录音时长显示**：录音时实时显示已录时长，最长 60 秒自动停止
 - **提示音反馈**：开始/停止录音时播放不同音调的提示音
 - **全场景通知**：超时、识别失败、录音太短等异常均有托盘通知
+- **历史记录**：自动保存最近 10 条语音输入，托盘菜单可重新粘贴
+- **开关纠错**：托盘菜单可关闭 GLM 纠错，直接输出 ASR 原文
+- **位置记忆**：拖拽后自动记住按钮位置，重启恢复
 - **可拖拽浮动按钮**：悬浮于所有窗口之上，可自由拖拽移动
 - **系统托盘**：最小化到系统托盘，不占用任务栏空间
 
@@ -115,16 +118,21 @@ voice_input_tool/
 ├── main.py            # 程序入口
 ├── ui.py              # FloatingMic 浮动按钮 UI
 ├── app.py             # VoiceInputApp 流程编排
+├── history.py         # 历史记录模块
 ├── recorder.py        # 音频录制模块
 ├── asr_client.py      # ASR 语音识别客户端
 ├── text_processor.py  # GLM 文本后处理
 ├── config.py          # 配置文件
 ├── requirements.txt   # Python 依赖
-├── tests/             # 单元测试（25 项）
+├── tests/             # 单元测试（54 项）
 │   ├── test_recorder.py
 │   ├── test_asr_client.py
 │   ├── test_text_processor.py
-│   └── test_config.py
+│   ├── test_config.py
+│   ├── test_history.py
+│   ├── test_ui_state.py
+│   ├── test_paste_flow.py
+│   └── test_integration.py
 └── README.md
 ```
 
