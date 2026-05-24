@@ -158,7 +158,6 @@ voice_input_tool/
 | funasr | 语音识别模型推理 |
 | modelscope | ASR 模型下载 |
 | pyperclip | 剪贴板操作 |
-| zhipuai | 智谱 AI API 客户端 |
 
 ## 测试
 
