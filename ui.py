@@ -66,6 +66,11 @@ class FloatingMic(QWidget):
         self._timeout_timer.setSingleShot(True)
         self._timeout_timer.timeout.connect(self._on_timeout)
 
+        self._restore_timer = QTimer(self)
+        self._restore_timer.setSingleShot(True)
+        self._restore_timer.timeout.connect(self._do_restore_clipboard)
+        self._pending_clip_restore = None
+
         self.reset_requested.connect(self._do_reset)
         self.paste_and_notify.connect(self._do_paste_and_notify)
 
@@ -120,6 +125,9 @@ class FloatingMic(QWidget):
         target = self._target_hwnd
         self.hide()
 
+        self._restore_timer.stop()
+        self._pending_clip_restore = None
+
         try:
             old_clip = pyperclip.paste()
         except Exception:
@@ -137,20 +145,26 @@ class FloatingMic(QWidget):
         user32.keybd_event(VK_V, 0, KEY_DOWN, 0)
         user32.keybd_event(VK_V, 0, KEY_UP, 0)
         user32.keybd_event(VK_CTRL, 0, KEY_UP, 0)
-        time.sleep(PASTE_WAIT)
-
-        if old_clip is not None:
-            try:
-                pyperclip.copy(old_clip)
-            except Exception:
-                pass
 
         self.show()
+
+        if old_clip is not None:
+            self._pending_clip_restore = old_clip
+            self._restore_timer.start(1500)
 
         if hasattr(self, "_tray_ref") and self._tray_ref:
             self._tray_ref.showMessage(
                 "语音输入", text, QSystemTrayIcon.MessageIcon.Information, 2000
             )
+
+    def _do_restore_clipboard(self):
+        text = self._pending_clip_restore
+        self._pending_clip_restore = None
+        if text is not None:
+            try:
+                pyperclip.copy(text)
+            except Exception:
+                pass
 
     def _on_max_recording(self):
         logging.info("录音达到最大时长，自动停止")
