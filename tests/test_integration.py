@@ -1,4 +1,5 @@
 import sys
+import winreg
 import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
@@ -104,3 +105,60 @@ class TestFullPipeline:
         app.toggle()
         app.btn.set_state.assert_called_once_with("idle")
         app.btn.show_notification.assert_called_once_with("语音输入", "已取消处理")
+
+
+class TestAutostart:
+    def _make_app(self):
+        app_module.VoiceInputApp.__init__ = lambda self: None
+        app = app_module.VoiceInputApp.__new__(app_module.VoiceInputApp)
+        app._autostart_enabled = False
+        return app
+
+    @patch("app.winreg")
+    def test_read_autostart_true(self, mock_winreg):
+        mock_key = MagicMock()
+        mock_winreg.OpenKey.return_value = mock_key
+        mock_winreg.QueryValueEx.return_value = ("some_path", mock_winreg.REG_SZ)
+
+        app = self._make_app()
+        result = app._read_autostart()
+
+        assert result is True
+        mock_winreg.OpenKey.assert_called_once()
+
+    @patch("app.winreg")
+    def test_read_autostart_false(self, mock_winreg):
+        mock_winreg.OpenKey.side_effect = FileNotFoundError
+
+        app = self._make_app()
+        result = app._read_autostart()
+
+        assert result is False
+
+    @patch("app.winreg")
+    def test_toggle_autostart_enable(self, mock_winreg):
+        mock_key = MagicMock()
+        mock_winreg.OpenKey.return_value = mock_key
+        mock_winreg.HKEY_CURRENT_USER = winreg.HKEY_CURRENT_USER
+        mock_winreg.KEY_SET_VALUE = winreg.KEY_SET_VALUE
+        mock_winreg.REG_SZ = winreg.REG_SZ
+
+        app = self._make_app()
+        app._toggle_autostart(True)
+
+        mock_winreg.SetValueEx.assert_called_once()
+        assert app._autostart_enabled is True
+
+    @patch("app.winreg")
+    def test_toggle_autostart_disable(self, mock_winreg):
+        mock_key = MagicMock()
+        mock_winreg.OpenKey.return_value = mock_key
+        mock_winreg.HKEY_CURRENT_USER = winreg.HKEY_CURRENT_USER
+        mock_winreg.KEY_SET_VALUE = winreg.KEY_SET_VALUE
+
+        app = self._make_app()
+        app._autostart_enabled = True
+        app._toggle_autostart(False)
+
+        mock_winreg.DeleteValue.assert_called_once()
+        assert app._autostart_enabled is False
