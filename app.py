@@ -4,7 +4,7 @@ import logging
 import winsound
 
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PySide6.QtGui import QColor, QPixmap, QIcon, QAction
+from PySide6.QtGui import QColor, QPixmap, QIcon, QIcon, QPainter, QPen
 
 from ui import FloatingMic
 from recorder import AudioRecorder
@@ -66,7 +66,21 @@ class VoiceInputApp:
 
     def _init_tray(self):
         pm = QPixmap(32, 32)
-        pm.fill(QColor(74, 144, 217))
+        pm.fill(QColor(0, 0, 0, 0))
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setBrush(QColor(74, 144, 217))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(2, 2, 28, 28)
+        white = QColor(255, 255, 255)
+        p.setBrush(white)
+        p.drawRoundedRect(13, 6, 6, 11, 3, 3)
+        p.setBrush(Qt.PenStyle.NoBrush)
+        p.setPen(QPen(white, 2))
+        p.drawArc(9, 12, 14, 14, 35 * 16, 110 * 16)
+        p.drawLine(16, 19, 16, 23)
+        p.drawLine(12, 23, 20, 23)
+        p.end()
         icon = QIcon(pm)
 
         self.tray = QSystemTrayIcon(icon)
