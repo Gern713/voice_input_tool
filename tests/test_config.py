@@ -7,7 +7,7 @@ class TestConfig:
         assert isinstance(ZHIPU_API_KEY, str)
 
     def test_model_name(self):
-        assert GLM_MODEL == "glm-4-flash"
+        assert GLM_MODEL == "glm-5.1"
 
     def test_sample_rate(self):
         assert SAMPLE_RATE == 16000
