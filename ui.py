@@ -83,7 +83,6 @@ class FloatingMic(QWidget):
         else:
             screen = QApplication.primaryScreen().geometry()
             self.move(screen.right() - 100, screen.center().y() - 32)
-        self.move(screen.right() - 100, screen.center().y() - 32)
 
     def nativeEvent(self, eventType, message):
         if eventType == b"windows_generic_MSG":
