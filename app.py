@@ -1,6 +1,8 @@
 import sys
+import os
 import threading
 import logging
+import winreg
 import winsound
 
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
@@ -11,6 +13,9 @@ from recorder import AudioRecorder
 from asr_client import ASRClient
 from text_processor import TextProcessor
 import history
+
+AUTOSTART_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+AUTOSTART_NAME = "VoiceInputTool"
 
 
 class VoiceInputApp:
@@ -23,6 +28,7 @@ class VoiceInputApp:
         self.processor = TextProcessor()
 
         self._correction_enabled = True
+        self._autostart_enabled = self._read_autostart()
 
         self.btn = FloatingMic()
         self.btn.clicked.connect(self.toggle)
@@ -34,6 +40,12 @@ class VoiceInputApp:
 
     def _build_menu(self):
         menu = QMenu()
+
+        autostart_action = QAction("开机自启", self.app)
+        autostart_action.setCheckable(True)
+        autostart_action.setChecked(self._autostart_enabled)
+        autostart_action.triggered.connect(self._toggle_autostart)
+        menu.addAction(autostart_action)
 
         correction_action = QAction("文本纠错", self.app)
         correction_action.setCheckable(True)
@@ -57,6 +69,42 @@ class VoiceInputApp:
     def _toggle_correction(self, checked):
         self._correction_enabled = checked
         logging.info("文本纠错: %s", "开启" if checked else "关闭")
+
+    def _read_autostart(self):
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY, 0, winreg.KEY_READ)
+            winreg.QueryValueEx(key, AUTOSTART_NAME)
+            winreg.CloseKey(key)
+            return True
+        except FileNotFoundError:
+            return False
+        except Exception:
+            return False
+
+    def _toggle_autostart(self, checked):
+        if checked:
+            exe_path = os.path.abspath(sys.argv[0])
+            cmd = f'"{sys.executable}" "{exe_path}"'
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY, 0, winreg.KEY_SET_VALUE)
+                winreg.SetValueEx(key, AUTOSTART_NAME, 0, winreg.REG_SZ, cmd)
+                winreg.CloseKey(key)
+                self._autostart_enabled = True
+                logging.info("开机自启: 已开启")
+            except Exception as e:
+                logging.error("设置开机自启失败: %s", e)
+                self._autostart_enabled = False
+        else:
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY, 0, winreg.KEY_SET_VALUE)
+                winreg.DeleteValue(key, AUTOSTART_NAME)
+                winreg.CloseKey(key)
+                self._autostart_enabled = False
+                logging.info("开机自启: 已关闭")
+            except FileNotFoundError:
+                self._autostart_enabled = False
+            except Exception as e:
+                logging.error("取消开机自启失败: %s", e)
 
     def _on_history_click(self, action):
         text = action.data()
