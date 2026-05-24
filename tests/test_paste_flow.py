@@ -12,6 +12,8 @@ class TestPasteFlow:
         mic._tick_count = 0
         mic._timer = MagicMock()
         mic._timeout_timer = MagicMock()
+        mic._restore_timer = MagicMock()
+        mic._pending_clip_restore = None
         mic._target_hwnd = 12345
         mic._tray_ref = MagicMock()
         return mic
@@ -35,9 +37,9 @@ class TestPasteFlow:
         mic.hide = MagicMock()
         mic.show = MagicMock()
         mic._do_paste_and_notify("new text")
-        calls = mock_clip.copy.call_args_list
-        assert calls[0] == call("new text")
-        assert calls[-1] == call("old text")
+        mock_clip.copy.assert_called_once_with("new text")
+        assert mic._pending_clip_restore == "old text"
+        mic._restore_timer.start.assert_called_with(1500)
 
     @patch("ui.pyperclip")
     @patch("ui.time")
