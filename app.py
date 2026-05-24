@@ -10,6 +10,7 @@ from ui import FloatingMic
 from recorder import AudioRecorder
 from asr_client import ASRClient
 from text_processor import TextProcessor
+import history
 
 
 class VoiceInputApp:
@@ -29,19 +30,41 @@ class VoiceInputApp:
         self._init_tray()
         self.btn._tray_ref = self.tray
 
+    def _build_menu(self):
+        menu = QMenu()
+
+        hist = history.load()
+        if hist:
+            hist_menu = menu.addMenu("历史记录")
+            for item in reversed(hist[-10:]):
+                text = item["text"][:20] + ("..." if len(item["text"]) > 20 else "")
+                action = hist_menu.addAction(text)
+                action.setData(item["text"])
+            hist_menu.triggered.connect(self._on_history_click)
+            menu.addSeparator()
+
+        menu.addAction("退出").triggered.connect(self.app.quit)
+        return menu
+
+    def _on_history_click(self, action):
+        text = action.data()
+        if text:
+            history.add(text)
+            self.btn.paste_and_notify.emit(text)
+
     def _init_tray(self):
         pm = QPixmap(32, 32)
         pm.fill(QColor(74, 144, 217))
         icon = QIcon(pm)
 
-        menu = QMenu()
-        menu.addAction("退出").triggered.connect(self.app.quit)
-
         self.tray = QSystemTrayIcon(icon)
-        self.tray.setContextMenu(menu)
+        self.tray.setContextMenu(self._build_menu())
         self.tray.setToolTip("语音输入助手 - 点击按钮开始录音")
         self.tray.activated.connect(self._tray_click)
         self.tray.show()
+
+    def _refresh_tray_menu(self):
+        self.tray.setContextMenu(self._build_menu())
 
     def _tray_click(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
@@ -69,13 +92,6 @@ class VoiceInputApp:
         elif self.btn.state == FloatingMic.PROCESSING:
             self.btn.set_state(FloatingMic.IDLE)
             self.btn.show_notification("语音输入", "已取消处理")
-            if audio_data is not None:
-                threading.Thread(
-                    target=self._process, args=(audio_data,), daemon=True
-                ).start()
-            else:
-                self.btn.set_state(FloatingMic.IDLE)
-                self.btn.show_notification("语音输入", "录音时间太短")
 
     def _process(self, audio_data):
         try:
@@ -95,12 +111,14 @@ class VoiceInputApp:
                 logging.warning("GLM 纠错失败，使用原始文本: %s", e)
                 self.btn.show_notification("语音输入", "文本已输入（纠错失败）")
 
+            history.add(text)
             self.btn.paste_and_notify.emit(text)
         except Exception as e:
             logging.error("处理失败: %s", e)
             self.btn.show_notification("语音输入", "处理失败，请重试")
         finally:
             self.btn.reset_requested.emit()
+            self._refresh_tray_menu()
 
     def run(self):
         return self.app.exec()
