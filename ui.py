@@ -3,7 +3,7 @@ import ctypes
 import logging
 
 from PySide6.QtWidgets import QApplication, QWidget, QSystemTrayIcon
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal, QTimer, QSettings
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
 
 import pyperclip
@@ -71,7 +71,13 @@ class FloatingMic(QWidget):
 
         ctypes.windll.user32.RegisterHotKey(int(self.winId()), 1, 0, VK_F8)
 
-        screen = QApplication.primaryScreen().geometry()
+        self._settings = QSettings("VoiceInput", "VoiceInput")
+        saved_pos = self._settings.value("button_pos")
+        if saved_pos:
+            self.move(saved_pos)
+        else:
+            screen = QApplication.primaryScreen().geometry()
+            self.move(screen.right() - 100, screen.center().y() - 32)
         self.move(screen.right() - 100, screen.center().y() - 32)
 
     def nativeEvent(self, eventType, message):
@@ -183,6 +189,7 @@ class FloatingMic(QWidget):
                 self._dragging = True
         if self._dragging:
             self.move(new_pos)
+            self._settings.setValue("button_pos", new_pos)
 
     def mouseReleaseEvent(self, e):
         if e.button() == Qt.LeftButton and not self._dragging:
