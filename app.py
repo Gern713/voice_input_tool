@@ -29,7 +29,9 @@ class VoiceInputApp:
         self.recorder = AudioRecorder()
         self.asr = ASRClient()
         self.processor = TextProcessor()
+        logging.info("正在加载流式识别模型...")
         self._streaming_asr = StreamingASRClient()
+        logging.info("流式识别模型加载完成")
         self._chunk_queue = queue.Queue()
 
         self._correction_enabled = True
@@ -172,7 +174,7 @@ class VoiceInputApp:
     def toggle(self):
         if self.btn.state == FloatingMic.IDLE:
             try:
-                self._streaming_asr = StreamingASRClient()
+                self._streaming_asr._cache = {}
                 self._chunk_queue = queue.Queue()
                 self.recorder.start(chunk_callback=self._on_chunk)
                 threading.Thread(target=self._chunk_worker, daemon=True).start()
