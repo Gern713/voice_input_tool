@@ -1,5 +1,6 @@
 import sys
 import winreg
+import queue
 import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
@@ -16,6 +17,8 @@ class TestFullPipeline:
         app.recorder = MagicMock()
         app.asr = MagicMock()
         app.processor = MagicMock()
+        app._streaming_asr = MagicMock()
+        app._chunk_queue = queue.Queue()
         app.btn = MagicMock()
         app.btn.state = "idle"
         app._correction_enabled = True
