@@ -184,7 +184,7 @@ python -m pytest tests/ -v
 
 ## 演示视频
 
-[演示视频链接（待补充）]
+[B站演示视频](https://www.bilibili.com/video/BV12WGo6TEk1/)
 
 ## 许可证
 

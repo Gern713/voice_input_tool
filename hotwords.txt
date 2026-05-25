@@ -1,7 +1,4 @@
-PyTorch
-FunASR
-Paraformer
-GLM
-PySide6
-sounddevice
-numpy
+Transformer
+machine learning
+deep learning
+reinforcement learning
