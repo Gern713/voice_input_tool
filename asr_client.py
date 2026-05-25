@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from funasr import AutoModel
 
-from config import HOTWORDS_FILE
+from config import HOTWORDS_FILE, CHUNK_SIZE
 
 
 def load_hotwords(path=HOTWORDS_FILE):
@@ -32,6 +32,33 @@ class ASRClient:
         if self._hotwords:
             kwargs["hotword"] = self._hotwords
         result = self.model.generate(**kwargs)
+        if result and result[0].get("text"):
+            return result[0]["text"].strip()
+        return ""
+
+
+class StreamingASRClient:
+    def __init__(self):
+        self.model = AutoModel(
+            model="paraformer-zh-streaming",
+            disable_update=True,
+            trust_remote_code=True,
+        )
+        self._cache = {}
+
+    def process_chunk(self, audio: np.ndarray) -> str:
+        result = self.model.generate(
+            input=audio, cache=self._cache, is_final=False, chunk_size=CHUNK_SIZE
+        )
+        if result and result[0].get("text"):
+            return result[0]["text"].strip()
+        return ""
+
+    def end_session(self, audio: np.ndarray) -> str:
+        result = self.model.generate(
+            input=audio, cache=self._cache, is_final=True, chunk_size=CHUNK_SIZE
+        )
+        self._cache = {}
         if result and result[0].get("text"):
             return result[0]["text"].strip()
         return ""
