@@ -55,6 +55,9 @@ class VoiceInputApp:
         correction_action.triggered.connect(self._toggle_correction)
         menu.addAction(correction_action)
 
+        hotwords_action = menu.addAction("编辑热词")
+        hotwords_action.triggered.connect(self._edit_hotwords)
+
         hist = history.load()
         if hist:
             hist_menu = menu.addMenu("历史记录")
@@ -71,6 +74,9 @@ class VoiceInputApp:
     def _toggle_correction(self, checked):
         self._correction_enabled = checked
         logging.info("文本纠错: %s", "开启" if checked else "关闭")
+
+    def _edit_hotwords(self):
+        os.startfile("hotwords.txt")
 
     def _read_autostart(self):
         try:

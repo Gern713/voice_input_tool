@@ -1,0 +1,7 @@
+PyTorch
+FunASR
+Paraformer
+GLM
+PySide6
+sounddevice
+numpy
