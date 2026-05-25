@@ -48,7 +48,6 @@ class FloatingMic(QWidget):
         self._dragging = False
         self._pulse = 0
         self._target_hwnd = None
-        self._hotkey_cb = None
         self._tick_count = 0
         self._partial = ""
 
@@ -163,8 +162,7 @@ class FloatingMic(QWidget):
 
     def _on_max_recording(self):
         logging.info("录音达到最大时长，自动停止")
-        if self._hotkey_cb:
-            self._hotkey_cb()
+        self.clicked.emit()
 
     def _on_timeout(self):
         logging.warning("处理超时，自动重置")
