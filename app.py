@@ -1,6 +1,5 @@
 import sys
 import os
-import queue
 import threading
 import logging
 import winreg
@@ -13,7 +12,7 @@ from PySide6.QtGui import QColor, QPixmap, QIcon, QPainter, QPen
 
 from ui import FloatingMic
 from recorder import AudioRecorder
-from asr_client import ASRClient, StreamingASRClient
+from asr_client import ASRClient
 from text_processor import TextProcessor
 import history
 
@@ -29,10 +28,6 @@ class VoiceInputApp:
         self.recorder = AudioRecorder()
         self.asr = ASRClient()
         self.processor = TextProcessor()
-        logging.info("正在加载流式识别模型...")
-        self._streaming_asr = StreamingASRClient()
-        logging.info("流式识别模型加载完成")
-        self._chunk_queue = queue.Queue()
 
         self._correction_enabled = True
         self._autostart_enabled = self._read_autostart()
@@ -81,21 +76,6 @@ class VoiceInputApp:
 
     def _edit_hotwords(self):
         os.startfile("hotwords.txt")
-
-    def _on_chunk(self, audio_chunk):
-        self._chunk_queue.put(audio_chunk)
-
-    def _chunk_worker(self):
-        while True:
-            chunk = self._chunk_queue.get()
-            if chunk is None:
-                break
-            try:
-                text = self._streaming_asr.process_chunk(chunk)
-                if text:
-                    self.btn.partial_text.emit(text)
-            except Exception as e:
-                logging.warning("流式识别 chunk 失败: %s", e)
 
     def _read_autostart(self):
         try:
@@ -174,10 +154,7 @@ class VoiceInputApp:
     def toggle(self):
         if self.btn.state == FloatingMic.IDLE:
             try:
-                self._streaming_asr._cache = {}
-                self._chunk_queue = queue.Queue()
-                self.recorder.start(chunk_callback=self._on_chunk)
-                threading.Thread(target=self._chunk_worker, daemon=True).start()
+                self.recorder.start()
                 self.btn.set_state(FloatingMic.RECORDING)
                 winsound.Beep(800, 150)
             except Exception as e:
@@ -185,7 +162,6 @@ class VoiceInputApp:
         elif self.btn.state == FloatingMic.RECORDING:
             winsound.Beep(400, 200)
             audio_data = self.recorder.stop()
-            self._chunk_queue.put(None)
             self.btn.set_state(FloatingMic.PROCESSING)
             if audio_data is not None:
                 threading.Thread(
@@ -200,16 +176,7 @@ class VoiceInputApp:
 
     def _process(self, audio_data):
         try:
-            # Use offline ASR for final accurate transcription
             raw_text = self.asr.transcribe(audio_data)
-
-            # If offline ASR fails, try streaming final as fallback
-            if not raw_text:
-                try:
-                    raw_text = self._streaming_asr.end_session(audio_data[-9600:] if len(audio_data) > 9600 else audio_data)
-                except Exception:
-                    pass
-
             if not raw_text:
                 logging.info("未识别到语音内容")
                 self.btn.show_notification("语音输入", "未识别到语音内容")

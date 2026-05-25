@@ -35,7 +35,6 @@ class FloatingMic(QWidget):
     clicked = Signal()
     reset_requested = Signal()
     paste_and_notify = Signal(str)
-    partial_text = Signal(str)
 
     IDLE = "idle"
     RECORDING = "recording"
@@ -49,7 +48,6 @@ class FloatingMic(QWidget):
         self._pulse = 0
         self._target_hwnd = None
         self._tick_count = 0
-        self._partial = ""
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
@@ -72,7 +70,6 @@ class FloatingMic(QWidget):
 
         self.reset_requested.connect(self._do_reset)
         self.paste_and_notify.connect(self._do_paste_and_notify)
-        self.partial_text.connect(self._on_partial_text)
 
         self._settings = QSettings("VoiceInput", "VoiceInput")
         saved_pos = self._settings.value("button_pos")
@@ -93,7 +90,6 @@ class FloatingMic(QWidget):
         if state == self.RECORDING:
             self._pulse = 0
             self._tick_count = 0
-            self._partial = ""
             self._timer.start(PULSE_INTERVAL)
         elif state == self.PROCESSING:
             self._timer.stop()
@@ -101,15 +97,10 @@ class FloatingMic(QWidget):
         else:
             self._timer.stop()
             self._timeout_timer.stop()
-            self._partial = ""
         self.update()
 
     def _do_reset(self):
         self.set_state(self.IDLE)
-
-    def _on_partial_text(self, text):
-        self._partial = text
-        self.update()
 
     def show_notification(self, title, message, icon=QSystemTrayIcon.MessageIcon.Information):
         if hasattr(self, "_tray_ref") and self._tray_ref:
@@ -214,11 +205,7 @@ class FloatingMic(QWidget):
             secs = self._tick_count // TICKS_PER_SEC
             p.setFont(QFont("Microsoft YaHei", 9))
             p.setPen(QColor(255, 255, 255))
-            if self._partial:
-                display = self._partial[:6] + ("..." if len(self._partial) > 6 else "")
-                p.drawText(0, 68, 64, 16, Qt.AlignCenter, display)
-            else:
-                p.drawText(0, 68, 64, 16, Qt.AlignCenter, f"{secs}s")
+            p.drawText(0, 68, 64, 16, Qt.AlignCenter, f"{secs}s")
 
         if self.state == self.IDLE:
             bg = QColor(74, 144, 217)
