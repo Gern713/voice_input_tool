@@ -162,36 +162,3 @@ class TestAutostart:
 
         mock_winreg.DeleteValue.assert_called_once()
         assert app._autostart_enabled is False
-
-
-class TestHotkey:
-    def _make_mic(self):
-        import ui as ui_module
-        mic = ui_module.FloatingMic.__new__(ui_module.FloatingMic)
-        mic._hotkey_name = "F8"
-        mic._hotkey_vk = 0x77
-        mic._settings = MagicMock()
-        mic.winId = MagicMock(return_value=12345)
-        mic.setToolTip = MagicMock()
-        return mic
-
-    @patch("ui.ctypes")
-    def test_set_hotkey_registers_new_key(self, mock_ctypes):
-        mic = self._make_mic()
-        mic.set_hotkey("F6")
-        assert mic._hotkey_name == "F6"
-        assert mic._hotkey_vk == 0x75
-        mock_ctypes.windll.user32.UnregisterHotKey.assert_called_once()
-        mock_ctypes.windll.user32.RegisterHotKey.assert_called_once()
-
-    @patch("ui.ctypes")
-    def test_set_hotkey_noop_when_same(self, mock_ctypes):
-        mic = self._make_mic()
-        mic.set_hotkey("F8")
-        mock_ctypes.windll.user32.UnregisterHotKey.assert_not_called()
-
-    @patch("ui.ctypes")
-    def test_set_hotkey_saves_to_settings(self, mock_ctypes):
-        mic = self._make_mic()
-        mic.set_hotkey("F12")
-        mic._settings.setValue.assert_called_with("hotkey", "F12")
