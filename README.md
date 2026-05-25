@@ -153,7 +153,7 @@ voice_input_tool/
 ├── config.py          # 配置文件
 ├── hotwords.txt       # 热词配置文件
 ├── requirements.txt   # Python 依赖
-├── tests/             # 单元测试（68 项）
+├── tests/             # 单元测试（75 项）
 │   ├── test_recorder.py
 │   ├── test_asr_client.py
 │   ├── test_streaming_asr.py
