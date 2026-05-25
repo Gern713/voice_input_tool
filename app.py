@@ -10,7 +10,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPixmap, QIcon, QPainter, QPen
 
-from ui import FloatingMic
+from ui import FloatingMic, HOTKEY_OPTIONS
 from recorder import AudioRecorder
 from asr_client import ASRClient
 from text_processor import TextProcessor
@@ -58,6 +58,16 @@ class VoiceInputApp:
         hotwords_action = menu.addAction("编辑热词")
         hotwords_action.triggered.connect(self._edit_hotwords)
 
+        hotkey_menu = menu.addMenu("快捷键")
+        for name in HOTKEY_OPTIONS:
+            action = hotkey_menu.addAction(name)
+            action.setData(name)
+            if name == self.btn._hotkey_name:
+                font = action.font()
+                font.setBold(True)
+                action.setFont(font)
+        hotkey_menu.triggered.connect(self._on_hotkey_change)
+
         hist = history.load()
         if hist:
             hist_menu = menu.addMenu("历史记录")
@@ -77,6 +87,12 @@ class VoiceInputApp:
 
     def _edit_hotwords(self):
         os.startfile("hotwords.txt")
+
+    def _on_hotkey_change(self, action):
+        name = action.data()
+        if name:
+            self.btn.set_hotkey(name)
+            self._refresh_tray_menu()
 
     def _read_autostart(self):
         try:
