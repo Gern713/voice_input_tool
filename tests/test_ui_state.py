@@ -1,7 +1,7 @@
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import MagicMock
 
-from ui import FloatingMic, HOTKEY_OPTIONS
+from ui import FloatingMic
 
 
 class TestFloatingMicState:
@@ -16,11 +16,6 @@ class TestFloatingMicState:
         mic._restore_timer = MagicMock()
         mic._pending_clip_restore = None
         mic.update = MagicMock()
-        mic.setToolTip = MagicMock()
-        mic.winId = MagicMock(return_value=12345)
-        mic._settings = MagicMock()
-        mic._hotkey_name = "F8"
-        mic._hotkey_vk = HOTKEY_OPTIONS["F8"]
         return mic
 
     def test_initial_state_is_idle(self):
@@ -68,52 +63,6 @@ class TestFloatingMicState:
         mic.set_state(FloatingMic.RECORDING)
         mic._do_reset()
         assert mic.state == FloatingMic.IDLE
-
-
-class TestSetHotkey:
-    @patch("ui.ctypes")
-    def test_set_hotkey_registers_new_key(self, mock_ctypes):
-        mic = self._make_mic()
-        mic.set_hotkey("F6")
-        mock_ctypes.windll.user32.UnregisterHotKey.assert_called_once_with(12345, 1)
-        mock_ctypes.windll.user32.RegisterHotKey.assert_called_once_with(12345, 1, 0, HOTKEY_OPTIONS["F6"])
-        assert mic._hotkey_name == "F6"
-        assert mic._hotkey_vk == HOTKEY_OPTIONS["F6"]
-        mic._settings.setValue.assert_called_with("hotkey", "F6")
-
-    @patch("ui.ctypes")
-    def test_set_hotkey_updates_tooltip(self, mock_ctypes):
-        mic = self._make_mic()
-        mic.set_hotkey("F10")
-        mic.setToolTip.assert_called_once()
-        assert "F10" in mic.setToolTip.call_args[0][0]
-
-    def test_set_hotkey_same_key_noop(self):
-        mic = self._make_mic()
-        mic._hotkey_vk = HOTKEY_OPTIONS["F8"]
-        mic.set_hotkey("F8")
-        mic._settings.setValue.assert_not_called()
-
-    def test_set_hotkey_invalid_name_noop(self):
-        mic = self._make_mic()
-        mic.set_hotkey("F1")
-        mic._settings.setValue.assert_not_called()
-
-    def _make_mic(self):
-        mic = FloatingMic.__new__(FloatingMic)
-        mic.state = FloatingMic.IDLE
-        mic._pulse = 0
-        mic._tick_count = 0
-        mic._partial = ""
-        mic._timer = MagicMock()
-        mic._timeout_timer = MagicMock()
-        mic.update = MagicMock()
-        mic.setToolTip = MagicMock()
-        mic.winId = MagicMock(return_value=12345)
-        mic._settings = MagicMock()
-        mic._hotkey_name = "F8"
-        mic._hotkey_vk = HOTKEY_OPTIONS["F8"]
-        return mic
 
 
 class TestPartialText:

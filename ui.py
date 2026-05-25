@@ -9,17 +9,10 @@ from PySide6.QtGui import QPainter, QColor, QPen, QFont
 import pyperclip
 
 # Win32 constants
-WM_HOTKEY = 0x0312
 VK_CTRL = 0x11
 VK_V = 0x56
 KEY_DOWN = 0
 KEY_UP = 2
-
-HOTKEY_OPTIONS = {
-    "F6": 0x75, "F7": 0x76, "F8": 0x77,
-    "F9": 0x78, "F10": 0x79, "F12": 0x7B,
-}
-DEFAULT_HOTKEY = "F8"
 
 # Widget layout
 BTN_WIDTH = 64
@@ -57,8 +50,6 @@ class FloatingMic(QWidget):
         self._target_hwnd = None
         self._hotkey_cb = None
         self._tick_count = 0
-        self._hotkey_name = DEFAULT_HOTKEY
-        self._hotkey_vk = HOTKEY_OPTIONS[DEFAULT_HOTKEY]
         self._partial = ""
 
         self.setWindowFlags(
@@ -66,7 +57,7 @@ class FloatingMic(QWidget):
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(BTN_WIDTH, BTN_HEIGHT)
-        self.setToolTip(f"点击录音 | 拖拽移动 | {self._hotkey_name} 快捷键")
+        self.setToolTip("点击录音 | 拖拽移动")
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
@@ -85,14 +76,6 @@ class FloatingMic(QWidget):
         self.partial_text.connect(self._on_partial_text)
 
         self._settings = QSettings("VoiceInput", "VoiceInput")
-
-        saved_hotkey = self._settings.value("hotkey")
-        if saved_hotkey and saved_hotkey in HOTKEY_OPTIONS:
-            self._hotkey_name = saved_hotkey
-            self._hotkey_vk = HOTKEY_OPTIONS[saved_hotkey]
-
-        ctypes.windll.user32.RegisterHotKey(int(self.winId()), 1, 0, self._hotkey_vk)
-
         saved_pos = self._settings.value("button_pos")
         if saved_pos:
             self.move(saved_pos)
@@ -100,32 +83,11 @@ class FloatingMic(QWidget):
             screen = QApplication.primaryScreen().geometry()
             self.move(screen.right() - 100, screen.center().y() - 32)
 
-    def nativeEvent(self, eventType, message):
-        if eventType == b"windows_generic_MSG":
-            msg = ctypes.wintypes.MSG.from_address(int(message))
-            if msg.message == WM_HOTKEY and msg.wParam == 1:
-                if self._hotkey_cb:
-                    self._hotkey_cb()
-                return True, 0
-        return False, 0
-
     def enterEvent(self, event):
         hwnd = ctypes.windll.user32.GetForegroundWindow()
         my_hwnd = int(self.winId())
         if hwnd != my_hwnd and hwnd != 0:
             self._target_hwnd = hwnd
-
-    def set_hotkey(self, name):
-        vk = HOTKEY_OPTIONS.get(name)
-        if not vk or vk == self._hotkey_vk:
-            return
-        ctypes.windll.user32.UnregisterHotKey(int(self.winId()), 1)
-        ctypes.windll.user32.RegisterHotKey(int(self.winId()), 1, 0, vk)
-        self._hotkey_name = name
-        self._hotkey_vk = vk
-        self.setToolTip(f"点击录音 | 拖拽移动 | {name} 快捷键")
-        self._settings.setValue("hotkey", name)
-        logging.info("快捷键切换为: %s", name)
 
     def set_state(self, state):
         self.state = state
