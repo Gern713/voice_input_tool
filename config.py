@@ -7,3 +7,6 @@ GLM_MODEL = "glm-5.1"
 # ASR settings
 SAMPLE_RATE = 16000
 CHANNELS = 1
+
+# Hotwords
+HOTWORDS_FILE = os.path.join(os.path.dirname(__file__), "hotwords.txt")
