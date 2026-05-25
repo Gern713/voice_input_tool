@@ -125,7 +125,7 @@ voice_input_tool/
 ├── text_processor.py  # GLM 文本后处理
 ├── config.py          # 配置文件
 ├── requirements.txt   # Python 依赖
-├── tests/             # 单元测试（54 项）
+├── tests/             # 单元测试（58 项）
 │   ├── test_recorder.py
 │   ├── test_asr_client.py
 │   ├── test_text_processor.py
