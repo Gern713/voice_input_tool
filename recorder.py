@@ -2,7 +2,7 @@ import sounddevice as sd
 import numpy as np
 import threading
 
-from config import SAMPLE_RATE, CHANNELS, CHUNK_STRIDE
+from config import SAMPLE_RATE, CHANNELS
 
 
 class AudioRecorder:
@@ -11,13 +11,9 @@ class AudioRecorder:
         self._frames = []
         self._stop_event = threading.Event()
         self._thread = None
-        self._chunk_callback = None
-        self._chunk_buffer = np.empty((0, CHANNELS), dtype=np.int16)
 
-    def start(self, chunk_callback=None):
+    def start(self):
         self._frames = []
-        self._chunk_buffer = np.empty((0, CHANNELS), dtype=np.int16)
-        self._chunk_callback = chunk_callback
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
@@ -34,12 +30,6 @@ class AudioRecorder:
 
     def _callback(self, indata, frames, time_info, status):
         self._frames.append(indata.copy())
-        if self._chunk_callback:
-            self._chunk_buffer = np.concatenate([self._chunk_buffer, indata])
-            while len(self._chunk_buffer) >= CHUNK_STRIDE:
-                chunk = self._chunk_buffer[:CHUNK_STRIDE]
-                self._chunk_buffer = self._chunk_buffer[CHUNK_STRIDE:]
-                self._chunk_callback(chunk.flatten().astype(np.float32))
 
     def stop(self):
         self._stop_event.set()

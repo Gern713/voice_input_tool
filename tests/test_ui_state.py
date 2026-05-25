@@ -10,7 +10,6 @@ class TestFloatingMicState:
         mic.state = FloatingMic.IDLE
         mic._pulse = 0
         mic._tick_count = 0
-        mic._partial = ""
         mic._timer = MagicMock()
         mic._timeout_timer = MagicMock()
         mic._restore_timer = MagicMock()
@@ -28,7 +27,6 @@ class TestFloatingMicState:
         assert mic.state == "recording"
         assert mic._pulse == 0
         assert mic._tick_count == 0
-        assert mic._partial == ""
         mic._timer.start.assert_called_once()
 
     def test_recording_to_processing(self):
@@ -46,7 +44,6 @@ class TestFloatingMicState:
         assert mic.state == "idle"
         mic._timer.stop.assert_called()
         mic._timeout_timer.stop.assert_called()
-        assert mic._partial == ""
 
     def test_full_cycle(self):
         mic = self._make_mic()
@@ -63,34 +60,3 @@ class TestFloatingMicState:
         mic.set_state(FloatingMic.RECORDING)
         mic._do_reset()
         assert mic.state == FloatingMic.IDLE
-
-
-class TestPartialText:
-    def _make_mic(self):
-        mic = FloatingMic.__new__(FloatingMic)
-        mic.state = FloatingMic.IDLE
-        mic._pulse = 0
-        mic._tick_count = 0
-        mic._partial = ""
-        mic._timer = MagicMock()
-        mic._timeout_timer = MagicMock()
-        mic.update = MagicMock()
-        return mic
-
-    def test_on_partial_text_updates_display(self):
-        mic = self._make_mic()
-        mic._on_partial_text("你好世界")
-        assert mic._partial == "你好世界"
-        mic.update.assert_called_once()
-
-    def test_partial_cleared_on_idle(self):
-        mic = self._make_mic()
-        mic._partial = "测试"
-        mic.set_state(FloatingMic.IDLE)
-        assert mic._partial == ""
-
-    def test_partial_cleared_on_new_recording(self):
-        mic = self._make_mic()
-        mic._partial = "旧的文字"
-        mic.set_state(FloatingMic.RECORDING)
-        assert mic._partial == ""
