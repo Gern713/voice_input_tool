@@ -20,7 +20,7 @@ BTN_HEIGHT = 84
 BTN_CIRCLE_R = 30
 DRAG_THRESHOLD = 4
 COLLAPSED_WIDTH = 6
-EDGE_THRESHOLD = 15
+EDGE_THRESHOLD = BTN_WIDTH
 COLLAPSE_DELAY = 500
 
 # Timing (ms)
@@ -103,11 +103,11 @@ class FloatingMic(QWidget):
             self._collapse_timer.start(COLLAPSE_DELAY)
 
     def _detect_edge(self):
-        pos = self.pos()
+        cx = self.pos().x() + BTN_WIDTH // 2
         screen = QApplication.primaryScreen().geometry()
-        if pos.x() <= EDGE_THRESHOLD:
+        if cx <= EDGE_THRESHOLD:
             return "left"
-        if pos.x() + self.width() >= screen.right() - EDGE_THRESHOLD:
+        if cx >= screen.right() - EDGE_THRESHOLD:
             return "right"
         return None
 
