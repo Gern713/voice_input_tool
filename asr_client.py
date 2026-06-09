@@ -31,3 +31,31 @@ class ASRClient:
         if result and result[0].get("text"):
             return result[0]["text"].strip()
         return ""
+
+
+class StreamingASRClient:
+    def __init__(self):
+        self.model = AutoModel(
+            model="paraformer-zh-streaming",
+            model_revision="v2.0.4",
+            disable_update=True,
+            trust_remote_code=True,
+        )
+        self._cache = {}
+        self._chunk_size = [0, 10, 5]
+
+    def reset(self):
+        self._cache = {}
+
+    def process_chunk(self, audio: np.ndarray, is_final=False) -> str:
+        result = self.model.generate(
+            input=audio,
+            cache=self._cache,
+            is_final=is_final,
+            chunk_size=self._chunk_size,
+            encoder_chunk_look_back=4,
+            decoder_chunk_look_back=1,
+        )
+        if result and result[0].get("text"):
+            return result[0]["text"].strip()
+        return ""

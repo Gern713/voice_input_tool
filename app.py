@@ -1,6 +1,7 @@
 import sys
 import os
 import ctypes
+import queue
 import threading
 import logging
 import winreg
@@ -13,7 +14,7 @@ from PySide6.QtGui import QColor, QPixmap, QIcon, QPainter, QPen
 
 from ui import FloatingMic
 from recorder import AudioRecorder
-from asr_client import ASRClient, load_hotwords
+from asr_client import ASRClient, StreamingASRClient, load_hotwords
 from text_processor import TextProcessor
 import history
 import dict_manager
@@ -49,7 +50,10 @@ class VoiceInputApp:
 
         self.recorder = AudioRecorder()
         self.asr = ASRClient()
+        self.stream_asr = StreamingASRClient()
         self.processor = TextProcessor()
+        self._stream_queue = None
+        self._stream_thread = None
 
         self._correction_enabled = True
         self._autostart_enabled = self._read_autostart()
@@ -83,6 +87,32 @@ class VoiceInputApp:
 
     def _edit_hotwords(self):
         os.startfile("hotwords.txt")
+
+    def _on_chunk(self, audio_chunk):
+        if self._stream_queue:
+            self._stream_queue.put(audio_chunk)
+
+    def _stream_worker(self):
+        while True:
+            try:
+                chunk = self._stream_queue.get(timeout=1)
+            except queue.Empty:
+                continue
+            if chunk is None:
+                break
+            try:
+                text = self.stream_asr.process_chunk(chunk)
+                if text:
+                    self.btn.streaming_text.emit(text)
+            except Exception as e:
+                logging.warning("流式识别失败: %s", e)
+
+    def _stop_stream(self):
+        if self._stream_queue:
+            self._stream_queue.put(None)
+        if self._stream_thread:
+            self._stream_thread = None
+        self._stream_queue = None
 
     def _toggle_dict(self, action):
         key = action.data()
@@ -214,6 +244,13 @@ class VoiceInputApp:
     def toggle(self):
         if self.btn.state == FloatingMic.IDLE:
             try:
+                self.stream_asr.reset()
+                self._stream_queue = queue.Queue()
+                self._stream_thread = threading.Thread(
+                    target=self._stream_worker, daemon=True
+                )
+                self._stream_thread.start()
+                self.recorder.set_chunk_callback(self._on_chunk)
                 self.recorder.start()
                 self.btn.set_state(FloatingMic.RECORDING)
                 winsound.Beep(800, 150)
@@ -221,6 +258,8 @@ class VoiceInputApp:
                 logging.error("录音启动失败: %s", e)
         elif self.btn.state == FloatingMic.RECORDING:
             winsound.Beep(400, 200)
+            self.recorder.set_chunk_callback(None)
+            self._stop_stream()
             audio_data = self.recorder.stop()
             self.btn.set_state(FloatingMic.PROCESSING)
             if audio_data is not None:
