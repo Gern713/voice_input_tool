@@ -2,7 +2,7 @@ import time
 import ctypes
 import logging
 
-from PySide6.QtWidgets import QApplication, QWidget, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QLabel
 from PySide6.QtCore import Qt, Signal, QTimer, QSettings
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
 
@@ -38,6 +38,7 @@ class FloatingMic(QWidget):
     clicked = Signal()
     reset_requested = Signal()
     paste_and_notify = Signal(str)
+    streaming_text = Signal(str)
 
     IDLE = "idle"
     RECORDING = "recording"
@@ -75,6 +76,20 @@ class FloatingMic(QWidget):
 
         self.reset_requested.connect(self._do_reset)
         self.paste_and_notify.connect(self._do_paste_and_notify)
+        self.streaming_text.connect(self._on_streaming_text)
+
+        self._stream_label = QLabel(self)
+        self._stream_label.setStyleSheet(
+            "background-color: rgba(40, 40, 40, 200);"
+            "color: white;"
+            "padding: 4px 8px;"
+            "border-radius: 4px;"
+            "font-size: 13px;"
+        )
+        self._stream_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self._stream_label.setMaximumWidth(300)
+        self._stream_label.setWordWrap(True)
+        self._stream_label.hide()
 
         self._collapse_timer = QTimer(self)
         self._collapse_timer.setSingleShot(True)
@@ -152,10 +167,20 @@ class FloatingMic(QWidget):
         else:
             self._timer.stop()
             self._timeout_timer.stop()
+            self._stream_label.hide()
         self.update()
 
     def _do_reset(self):
         self.set_state(self.IDLE)
+
+    def _on_streaming_text(self, text):
+        if not text:
+            return
+        self._stream_label.setText(text)
+        self._stream_label.adjustSize()
+        label_x = (self.width() - self._stream_label.width()) // 2
+        self._stream_label.move(label_x, BTN_HEIGHT + 4)
+        self._stream_label.show()
 
     def show_notification(self, title, message, icon=QSystemTrayIcon.MessageIcon.Information):
         if hasattr(self, "_tray_ref") and self._tray_ref:
