@@ -1,5 +1,6 @@
 import sys
 import os
+import ctypes
 import threading
 import logging
 import winreg
@@ -7,7 +8,7 @@ import winsound
 
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PySide6.QtGui import QAction
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer, QAbstractNativeEventFilter
 from PySide6.QtGui import QColor, QPixmap, QIcon, QPainter, QPen
 
 from ui import FloatingMic
@@ -15,6 +16,26 @@ from recorder import AudioRecorder
 from asr_client import ASRClient
 from text_processor import TextProcessor
 import history
+
+WM_HOTKEY = 0x0312
+_HOTKEY_ID = 1
+_MOD_ALT = 0x0001
+_MOD_NOREPEAT = 0x4000
+_VK_V = 0x56
+
+
+class _GlobalHotkeyFilter(QAbstractNativeEventFilter):
+    def __init__(self, callback):
+        super().__init__()
+        self._cb = callback
+
+    def nativeEventFilter(self, eventType, message):
+        if eventType == b"windows_generic_MSG":
+            msg = ctypes.wintypes.MSG.from_address(int(message))
+            if msg.message == WM_HOTKEY and msg.wParam == _HOTKEY_ID:
+                self._cb()
+                return True
+        return False
 
 AUTOSTART_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 AUTOSTART_NAME = "VoiceInputTool"
@@ -39,36 +60,18 @@ class VoiceInputApp:
         self._init_tray()
         self.btn._tray_ref = self.tray
 
-    def _build_menu(self):
-        menu = QMenu()
+        # Global hotkey (Alt+V)
+        self._hotkey_filter = None
+        ok = ctypes.windll.user32.RegisterHotKey(
+            0, _HOTKEY_ID, _MOD_ALT | _MOD_NOREPEAT, _VK_V
+        )
+        if ok:
+            self._hotkey_filter = _GlobalHotkeyFilter(self.toggle)
+            self.app.installNativeEventFilter(self._hotkey_filter)
+            logging.info("全局热键 Alt+V 已注册")
+        else:
+            logging.warning("Alt+V 热键注册失败（可能被其他程序占用）")
 
-        autostart_action = QAction("开机自启", self.app)
-        autostart_action.setCheckable(True)
-        autostart_action.setChecked(self._autostart_enabled)
-        autostart_action.triggered.connect(self._toggle_autostart)
-        menu.addAction(autostart_action)
-
-        correction_action = QAction("文本纠错", self.app)
-        correction_action.setCheckable(True)
-        correction_action.setChecked(self._correction_enabled)
-        correction_action.triggered.connect(self._toggle_correction)
-        menu.addAction(correction_action)
-
-        hotwords_action = menu.addAction("编辑热词")
-        hotwords_action.triggered.connect(self._edit_hotwords)
-
-        hist = history.load()
-        if hist:
-            hist_menu = menu.addMenu("历史记录")
-            for item in reversed(hist[-10:]):
-                text = item["text"][:20] + ("..." if len(item["text"]) > 20 else "")
-                action = hist_menu.addAction(text)
-                action.setData(item["text"])
-            hist_menu.triggered.connect(self._on_history_click)
-
-        menu.addSeparator()
-        menu.addAction("退出").triggered.connect(self.app.quit)
-        return menu
 
     def _toggle_correction(self, checked):
         self._correction_enabled = checked
@@ -139,13 +142,44 @@ class VoiceInputApp:
         icon = QIcon(pm)
 
         self.tray = QSystemTrayIcon(icon)
-        self.tray.setContextMenu(self._build_menu())
-        self.tray.setToolTip("语音输入助手 - 点击按钮开始录音")
+        self._tray_menu = QMenu()
+        self._tray_menu.aboutToShow.connect(self._rebuild_menu)
+        self.tray.setContextMenu(self._tray_menu)
+        self.tray.setToolTip("语音输入助手 - Alt+V 开始录音")
         self.tray.activated.connect(self._tray_click)
         self.tray.show()
 
-    def _refresh_tray_menu(self):
-        self.tray.setContextMenu(self._build_menu())
+    def _rebuild_menu(self):
+        self._tray_menu.clear()
+        self._populate_menu(self._tray_menu)
+
+    def _populate_menu(self, menu):
+        autostart_action = QAction("开机自启", self.app)
+        autostart_action.setCheckable(True)
+        autostart_action.setChecked(self._autostart_enabled)
+        autostart_action.triggered.connect(self._toggle_autostart)
+        menu.addAction(autostart_action)
+
+        correction_action = QAction("文本纠错", self.app)
+        correction_action.setCheckable(True)
+        correction_action.setChecked(self._correction_enabled)
+        correction_action.triggered.connect(self._toggle_correction)
+        menu.addAction(correction_action)
+
+        hotwords_action = menu.addAction("编辑热词")
+        hotwords_action.triggered.connect(self._edit_hotwords)
+
+        hist = history.load()
+        if hist:
+            hist_menu = menu.addMenu("历史记录")
+            for item in reversed(hist[-10:]):
+                text = item["text"][:20] + ("..." if len(item["text"]) > 20 else "")
+                action = hist_menu.addAction(text)
+                action.setData(item["text"])
+            hist_menu.triggered.connect(self._on_history_click)
+
+        menu.addSeparator()
+        menu.addAction("退出").triggered.connect(self.app.quit)
 
     def _tray_click(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
@@ -202,7 +236,11 @@ class VoiceInputApp:
             self.btn.show_notification("语音输入", "处理失败，请重试")
         finally:
             self.btn.reset_requested.emit()
-            self._refresh_tray_menu()
 
     def run(self):
+        self.app.aboutToQuit.connect(self._cleanup)
         return self.app.exec()
+
+    def _cleanup(self):
+        if self._hotkey_filter:
+            ctypes.windll.user32.UnregisterHotKey(0, _HOTKEY_ID)

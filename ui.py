@@ -54,7 +54,7 @@ class FloatingMic(QWidget):
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(BTN_WIDTH, BTN_HEIGHT)
-        self.setToolTip("点击录音 | 拖拽移动")
+        self.setToolTip("点击录音 | Alt+V | 拖拽移动")
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
