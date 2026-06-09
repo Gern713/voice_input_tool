@@ -78,12 +78,16 @@ class FloatingMic(QWidget):
         self.paste_and_notify.connect(self._do_paste_and_notify)
         self.streaming_text.connect(self._on_streaming_text)
 
-        self._stream_label = QLabel(self)
+        self._stream_label = QLabel()
+        self._stream_label.setWindowFlags(
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+        )
+        self._stream_label.setAttribute(Qt.WA_ShowWithoutActivating)
         self._stream_label.setStyleSheet(
-            "background-color: rgba(40, 40, 40, 200);"
+            "background-color: rgba(40, 40, 40, 210);"
             "color: white;"
-            "padding: 4px 8px;"
-            "border-radius: 4px;"
+            "padding: 6px 10px;"
+            "border-radius: 6px;"
             "font-size: 13px;"
         )
         self._stream_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -178,8 +182,10 @@ class FloatingMic(QWidget):
             return
         self._stream_label.setText(text)
         self._stream_label.adjustSize()
-        label_x = (self.width() - self._stream_label.width()) // 2
-        self._stream_label.move(label_x, BTN_HEIGHT + 4)
+        pos = self.pos()
+        lx = pos.x() + (BTN_WIDTH - self._stream_label.width()) // 2
+        ly = pos.y() + BTN_HEIGHT + 6
+        self._stream_label.move(lx, ly)
         self._stream_label.show()
 
     def show_notification(self, title, message, icon=QSystemTrayIcon.MessageIcon.Information):
@@ -290,7 +296,6 @@ class FloatingMic(QWidget):
             p.drawRoundedRect(0, 0, COLLAPSED_WIDTH, BTN_HEIGHT, 3, 3)
             p.end()
             return
-        p.setRenderHint(QPainter.Antialiasing)
 
         cx, cy, r = 32, 32, BTN_CIRCLE_R
 
