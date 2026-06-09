@@ -89,8 +89,9 @@ class VoiceInputApp:
         os.startfile("hotwords.txt")
 
     def _on_chunk(self, audio_chunk):
-        if self._stream_queue:
-            self._stream_queue.put(audio_chunk)
+        q = self._stream_queue
+        if q:
+            q.put(audio_chunk)
 
     def _stream_worker(self):
         while True:
