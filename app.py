@@ -53,6 +53,9 @@ class VoiceInputApp:
         self._correction_enabled = True
         self._autostart_enabled = self._read_autostart()
 
+    def _edit_hotwords(self):
+        os.startfile("hotwords.txt")
+
         self.btn = FloatingMic()
         self.btn.clicked.connect(self.toggle)
         self.btn.show()
@@ -73,12 +76,13 @@ class VoiceInputApp:
             logging.warning("Alt+V 热键注册失败（可能被其他程序占用）")
 
 
+    def _toggle_visibility(self, checked):
+        self.btn.setVisible(checked)
+        logging.info("浮动按钮: %s", "显示" if checked else "隐藏")
+
     def _toggle_correction(self, checked):
         self._correction_enabled = checked
         logging.info("文本纠错: %s", "开启" if checked else "关闭")
-
-    def _edit_hotwords(self):
-        os.startfile("hotwords.txt")
 
     def _read_autostart(self):
         try:
@@ -154,6 +158,12 @@ class VoiceInputApp:
         self._populate_menu(self._tray_menu)
 
     def _populate_menu(self, menu):
+        show_action = QAction("显示按钮", self.app)
+        show_action.setCheckable(True)
+        show_action.setChecked(self.btn.isVisible())
+        show_action.triggered.connect(self._toggle_visibility)
+        menu.addAction(show_action)
+
         autostart_action = QAction("开机自启", self.app)
         autostart_action.setCheckable(True)
         autostart_action.setChecked(self._autostart_enabled)

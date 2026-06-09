@@ -19,6 +19,9 @@ BTN_WIDTH = 64
 BTN_HEIGHT = 84
 BTN_CIRCLE_R = 30
 DRAG_THRESHOLD = 4
+COLLAPSED_WIDTH = 6
+EDGE_THRESHOLD = 15
+COLLAPSE_DELAY = 500
 
 # Timing (ms)
 PULSE_INTERVAL = 60
@@ -48,6 +51,8 @@ class FloatingMic(QWidget):
         self._pulse = 0
         self._target_hwnd = None
         self._tick_count = 0
+        self._collapsed = False
+        self._edge_side = None
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
@@ -71,6 +76,10 @@ class FloatingMic(QWidget):
         self.reset_requested.connect(self._do_reset)
         self.paste_and_notify.connect(self._do_paste_and_notify)
 
+        self._collapse_timer = QTimer(self)
+        self._collapse_timer.setSingleShot(True)
+        self._collapse_timer.timeout.connect(self._try_collapse)
+
         self._settings = QSettings("VoiceInput", "VoiceInput")
         saved_pos = self._settings.value("button_pos")
         if saved_pos:
@@ -78,15 +87,61 @@ class FloatingMic(QWidget):
         else:
             screen = QApplication.primaryScreen().geometry()
             self.move(screen.right() - 100, screen.center().y() - 32)
+        QTimer.singleShot(0, self._try_collapse)
 
     def enterEvent(self, event):
+        self._collapse_timer.stop()
+        if self._collapsed:
+            self._expand()
         hwnd = ctypes.windll.user32.GetForegroundWindow()
         my_hwnd = int(self.winId())
         if hwnd != my_hwnd and hwnd != 0:
             self._target_hwnd = hwnd
 
+    def leaveEvent(self, event):
+        if self.state == self.IDLE and not self._dragging:
+            self._collapse_timer.start(COLLAPSE_DELAY)
+
+    def _detect_edge(self):
+        pos = self.pos()
+        screen = QApplication.primaryScreen().geometry()
+        if pos.x() <= EDGE_THRESHOLD:
+            return "left"
+        if pos.x() + self.width() >= screen.right() - EDGE_THRESHOLD:
+            return "right"
+        return None
+
+    def _try_collapse(self):
+        edge = self._detect_edge()
+        if not edge:
+            return
+        self._collapsed = True
+        self._edge_side = edge
+        screen = QApplication.primaryScreen().geometry()
+        if edge == "left":
+            self.setFixedSize(COLLAPSED_WIDTH, BTN_HEIGHT)
+            self.move(0, self.y())
+        else:
+            self.setFixedSize(COLLAPSED_WIDTH, BTN_HEIGHT)
+            self.move(screen.right() - COLLAPSED_WIDTH, self.y())
+        self.update()
+
+    def _expand(self):
+        if not self._collapsed:
+            return
+        self._collapsed = False
+        edge = self._edge_side
+        self._edge_side = None
+        screen = QApplication.primaryScreen().geometry()
+        self.setFixedSize(BTN_WIDTH, BTN_HEIGHT)
+        if edge == "right":
+            self.move(screen.right() - BTN_WIDTH, self.y())
+        self.update()
+
     def set_state(self, state):
         self.state = state
+        if state != self.IDLE and self._collapsed:
+            self._expand()
         if state == self.RECORDING:
             self._pulse = 0
             self._tick_count = 0
@@ -190,13 +245,26 @@ class FloatingMic(QWidget):
             self._settings.setValue("button_pos", new_pos)
 
     def mouseReleaseEvent(self, e):
-        if e.button() == Qt.LeftButton and not self._dragging:
-            self.clicked.emit()
+        if e.button() == Qt.LeftButton:
+            if self._dragging:
+                edge = self._detect_edge()
+                if edge:
+                    QTimer.singleShot(200, self._try_collapse)
+            else:
+                self.clicked.emit()
         self._drag_start = None
 
     # --- Paint ---
     def paintEvent(self, event):
         p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        if self._collapsed:
+            p.setBrush(QColor(74, 144, 217))
+            p.setPen(Qt.NoPen)
+            p.drawRoundedRect(0, 0, COLLAPSED_WIDTH, BTN_HEIGHT, 3, 3)
+            p.end()
+            return
         p.setRenderHint(QPainter.Antialiasing)
 
         cx, cy, r = 32, 32, BTN_CIRCLE_R
