@@ -8,8 +8,9 @@
 - **一键语音输入**：点击浮动麦克风按钮开始/停止录音
 - **边缘自动隐藏**：拖到屏幕边缘自动缩成一条线，鼠标移入展开，不占桌面空间
 - **托盘隐藏按钮**：托盘菜单可隐藏/显示浮动按钮，仅用快捷键操作
-- **高精度中文语音识别**：基于 FunASR Paraformer 本地模型，无需联网
-- **专业词汇热词**：自定义热词文件，提升专业术语识别准确率
+- **方言口音识别**：基于 SeACo-Paraformer 模型，自动识别方言口音，无需手动选择
+- **行业词库管理**：托盘菜单选择行业词库（医疗/法律/科技/金融/游戏），自动下载并增强识别
+- **上下文感知纠错**：根据当前使用的软件自动推断领域，精准纠错专业术语
 - **托盘快捷操作**：左键托盘图标也可触发录音
 - **智能文本后处理**：利用 GLM-5.1 大模型自动纠错、添加标点
 - **自动粘贴**：识别完成后自动将文本粘贴到当前光标位置
@@ -140,9 +141,16 @@ voice_input_tool/
 ├── history.py         # 历史记录模块
 ├── recorder.py        # 音频录制模块（支持 chunk 回调）
 ├── asr_client.py      # ASR 客户端（离线识别 + 热词）
-├── text_processor.py  # GLM 文本后处理
+├── text_processor.py  # GLM 文本后处理（上下文感知）
+├── dict_manager.py    # 行业词库管理（下载/缓存/合并）
 ├── config.py          # 配置文件
-├── hotwords.txt       # 热词配置文件
+├── hotwords.txt       # 自定义热词配置文件
+├── dicts/             # 预置行业词库
+│   ├── medical.txt
+│   ├── legal.txt
+│   ├── tech.txt
+│   ├── finance.txt
+│   └── gaming.txt
 ├── requirements.txt   # Python 依赖
 ├── tests/             # 单元测试（63 项）
 │   ├── test_recorder.py
@@ -160,7 +168,7 @@ voice_input_tool/
 
 | 组件 | 技术 | 说明 |
 |------|------|------|
-| 语音识别 | FunASR Paraformer-zh | 阿里达摩院开源，本地推理 |
+| 语音识别 | FunASR SeACo-Paraformer | 阿里达摩院开源，方言口音 + 热词增强 |
 | 文本后处理 | GLM-5.1 | 智谱 AI 大模型 API |
 | 桌面 UI | PySide6 (Qt) | 浮动窗口 + 系统托盘 |
 | 音频录制 | sounddevice | 跨平台音频输入 |

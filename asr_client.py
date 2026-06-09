@@ -4,21 +4,17 @@ import numpy as np
 from funasr import AutoModel
 
 from config import HOTWORDS_FILE
+import dict_manager
 
 
 def load_hotwords(path=HOTWORDS_FILE):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            words = [line.strip() for line in f if line.strip()]
-        return " ".join(words)
-    except FileNotFoundError:
-        return ""
+    return dict_manager.load_all_hotwords(path)
 
 
 class ASRClient:
     def __init__(self):
         self.model = AutoModel(
-            model="paraformer-zh",
+            model="iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch",
             model_revision="v2.0.4",
             disable_update=True,
             trust_remote_code=True,

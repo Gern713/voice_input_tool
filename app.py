@@ -13,9 +13,10 @@ from PySide6.QtGui import QColor, QPixmap, QIcon, QPainter, QPen
 
 from ui import FloatingMic
 from recorder import AudioRecorder
-from asr_client import ASRClient
+from asr_client import ASRClient, load_hotwords
 from text_processor import TextProcessor
 import history
+import dict_manager
 
 WM_HOTKEY = 0x0312
 _HOTKEY_ID = 1
@@ -82,6 +83,13 @@ class VoiceInputApp:
 
     def _edit_hotwords(self):
         os.startfile("hotwords.txt")
+
+    def _toggle_dict(self, action):
+        key = action.data()
+        dict_manager.toggle_dict(key, action.isChecked())
+        self.processor.reload_hotwords()
+        self.asr._hotwords = load_hotwords()
+        logging.info("词库 %s: %s", key, "启用" if action.isChecked() else "关闭")
 
     def _read_autostart(self):
         try:
@@ -177,6 +185,15 @@ class VoiceInputApp:
 
         hotwords_action = menu.addAction("编辑热词")
         hotwords_action.triggered.connect(self._edit_hotwords)
+
+        dict_menu = menu.addMenu("词库管理")
+        for d in dict_manager.get_available_dicts():
+            a = QAction(d["name"], self.app)
+            a.setCheckable(True)
+            a.setChecked(d["enabled"])
+            a.setData(d["key"])
+            dict_menu.addAction(a)
+        dict_menu.triggered.connect(self._toggle_dict)
 
         hist = history.load()
         if hist:
